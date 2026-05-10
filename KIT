@@ -1,11 +1,10 @@
--- KIT RENDER STANDALONE
--- Run once in your executor. It automatically activates during the draft phase.
+
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
--- Kit image IDs (the ones you provided)
+
 local ids = {
     ["none"] = "rbxassetid://16493320215",
     ["random"] = "rbxassetid://79773209697352",
@@ -123,185 +122,89 @@ local ids = {
     ["winter_lady"] = "rbxassetid://83274578564074",
 }
 
-local activeConnections = {}
-local updateDebounce = {}
-local retryThread = nil
-
--- Clean everything (called when restarting or script ends)
-local function removeAllKitRenders()
-    for _, conn in ipairs(activeConnections) do
-        conn:Disconnect()
+-- Simple function to create/update the kit icon on a card
+local function updateCard(card, player)
+    local icon = card:FindFirstChild("AeroV4KitRender")
+    if not icon then
+        icon = Instance.new("ImageLabel")
+        icon.Name = "AeroV4KitRender"
+        icon.AnchorPoint = Vector2.new(1, 0.5)
+        icon.BackgroundTransparency = 1
+        icon.Position = UDim2.new(1.05, 0, 0.5, 0)
+        icon.Size = UDim2.new(1.5, 0, 1.5, 0)
+        icon.SizeConstraint = Enum.SizeConstraint.RelativeYY
+        icon.ImageTransparency = 0.4
+        icon.ScaleType = Enum.ScaleType.Crop
+        local uar = Instance.new("UIAspectRatioConstraint")
+        uar.AspectRatio = 1
+        uar.AspectType = Enum.AspectType.FitWithinMaxSize
+        uar.DominantAxis = Enum.DominantAxis.Width
+        uar.Parent = icon
+        icon.Parent = card
     end
-    table.clear(activeConnections)
-    table.clear(updateDebounce)
-
-    if retryThread then
-        task.cancel(retryThread)
-        retryThread = nil
-    end
-
-    for _, v in ipairs(PlayerGui:GetDescendants()) do
-        if v:IsA("ImageLabel") and v.Name == "AeroV4KitRender" then
-            v:Destroy()
-        end
-    end
-end
-
--- Create the icon that will show the kit image
-local function createKitRender(plr)
-    local icon = Instance.new("ImageLabel")
-    icon.Name = "AeroV4KitRender"
-    icon.AnchorPoint = Vector2.new(1, 0.5)
-    icon.BackgroundTransparency = 1
-    icon.Position = UDim2.new(1.05, 0, 0.5, 0)
-    icon.Size = UDim2.new(1.5, 0, 1.5, 0)
-    icon.SizeConstraint = Enum.SizeConstraint.RelativeYY
-    icon.ImageTransparency = 0.4
-    icon.ScaleType = Enum.ScaleType.Crop
-    local uar = Instance.new("UIAspectRatioConstraint")
-    uar.AspectRatio = 1
-    uar.AspectType = Enum.AspectType.FitWithinMaxSize
-    uar.DominantAxis = Enum.DominantAxis.Width
-    uar.Parent = icon
-    icon.Image = ids[plr:GetAttribute("PlayingAsKit")] or ids["none"]
-    return icon
-end
-
--- Update the icon if the player's kit changed
-local function refreshIcon(icon, plr)
-    if not icon or not icon.Parent then return end
-    local kit = plr:GetAttribute("PlayingAsKit")
+    -- Set image based on current kit attribute
+    local kit = player:GetAttribute("PlayingAsKit")
     local newImage = ids[kit] or ids["none"]
     if icon.Image ~= newImage then
         icon.Image = newImage
     end
 end
 
--- Identify the Roblox player from the draft card UI
-local function findPlayer(label, container)
-    local render = container:FindFirstChild("PlayerRender", true)
+-- Find the Roblox player from a card’s PlayerRender image
+local function getPlayerFromCard(card)
+    local render = card:FindFirstChild("PlayerRender", true)
     if render and render:IsA("ImageLabel") and render.Image then
         local userId = string.match(render.Image, "id=(%d+)")
         if userId then
-            local plr = Players:GetPlayerByUserId(tonumber(userId))
-            if plr then return plr end
+            return Players:GetPlayerByUserId(tonumber(userId))
         end
     end
-    local text = label.Text
-    for _, plr in ipairs(Players:GetPlayers()) do
-        if plr.Name == text or plr.DisplayName == text or plr:GetAttribute("DisguiseDisplayName") == text then
-            return plr
-        end
-    end
-end
-
--- Attach a kit icon + update loop to one opponent label
-local function handleLabel(label)
-    if not (label:IsA("TextLabel") and label.Name == "PlayerName") then return end
-
-    task.spawn(function()
-        local container = label.Parent
-        for _ = 1, 3 do
-            if container and container.Parent then
-                container = container.Parent
+    -- Fallback: try PlayerName text
+    local nameLabel = card:FindFirstChild("PlayerName", true)
+    if nameLabel and nameLabel:IsA("TextLabel") then
+        for _, plr in ipairs(Players:GetPlayers()) do
+            if plr.Name == nameLabel.Text or plr.DisplayName == nameLabel.Text then
+                return plr
             end
         end
-        if not container or not container:IsA("Frame") then return end
-
-        local playerFound = findPlayer(label, container)
-        if not playerFound then
-            task.wait(0.5)
-            playerFound = findPlayer(label, container)
-        end
-        if not playerFound then return end
-
-        container.Name = playerFound.Name
-
-        -- BedWars draft player card is inside container -> "1" -> MatchDraftPlayerCard
-        local card = container:FindFirstChild("1") and container["1"]:FindFirstChild("MatchDraftPlayerCard")
-        if not card then return end
-
-        local icon = card:FindFirstChild("AeroV4KitRender")
-        if not icon then
-            icon = createKitRender(playerFound)
-            icon.Parent = card
-        end
-
-        -- Start update loop for this opponent
-        local loopKey = playerFound.UserId
-        if updateDebounce[loopKey] then return end
-        updateDebounce[loopKey] = true
-
-        task.spawn(function()
-            while icon and icon.Parent and container and container.Parent do
-                local currentTick = tick()
-                if not updateDebounce[loopKey] or (currentTick - (updateDebounce[loopKey] or 0)) >= 0.5 then
-                    updateDebounce[loopKey] = currentTick
-                    local updatedPlayer = findPlayer(label, container)
-                    if updatedPlayer and updatedPlayer ~= playerFound then
-                        playerFound = updatedPlayer
-                    end
-                    refreshIcon(icon, playerFound)
-                end
-                task.wait(0.5)
-            end
-            updateDebounce[loopKey] = nil
-        end)
-    end)
+    end
+    return nil
 end
 
--- Hook into the draft UI and print when ready
-local function setupKitRender()
-    local success, team2 = pcall(function()
-        return PlayerGui:FindFirstChild("MatchDraftApp") and
-               PlayerGui.MatchDraftApp:FindFirstChild("DraftAppBackground") and
-               PlayerGui.MatchDraftApp.DraftAppBackground:FindFirstChild("BodyContainer") and
-               PlayerGui.MatchDraftApp.DraftAppBackground.BodyContainer:FindFirstChild("Team2Column")
-    end)
-
-    if not success or not team2 then
-        return false
-    end
-
-    -- Process existing opponent labels
-    for _, child in ipairs(team2:GetDescendants()) do
-        handleLabel(child)
-    end
-
-    -- Listen for future labels (when players join/change)
-    local conn = team2.DescendantAdded:Connect(function(child)
-        handleLabel(child)
-    end)
-    table.insert(activeConnections, conn)
-
-    print("KIT RENDER LOADED")   -- <--- This is what you asked for
-    return true
-end
-
--- Main start: tries immediately, else retries every second
-local function startKitRender()
-    removeAllKitRenders()
-    local success = setupKitRender()
-    if not success then
-        retryThread = task.spawn(function()
-            while true do
-                task.wait(1)
-                if setupKitRender() then
-                    break
+-- Main loop: continuously scan for opponent cards and update them
+local function mainLoop()
+    local loadedPrinted = false
+    while true do
+        local draft = PlayerGui:FindFirstChild("MatchDraftApp")
+        if draft then
+            -- Collect all player cards in the draft UI
+            local cards = {}
+            for _, obj in ipairs(draft:GetDescendants()) do
+                if obj:IsA("Frame") and obj.Name == "MatchDraftPlayerCard" then
+                    table.insert(cards, obj)
                 end
             end
-        end)
+            
+            -- First time we find cards, print the confirmation
+            if #cards > 0 and not loadedPrinted then
+                print("KIT RENDER LOADED")
+                loadedPrinted = true
+            end
+            
+            -- Process each card (skip local player)
+            for _, card in ipairs(cards) do
+                local player = getPlayerFromCard(card)
+                if player and player ~= LocalPlayer then
+                    updateCard(card, player)
+                end
+            end
+        else
+      
+            loadedPrinted = false
+        end
+        task.wait(0.3)  -- update 3 times per second → smooth enough
     end
 end
 
--- Re‑start when a new MatchDraftApp appears (e.g., after a match ends)
-PlayerGui.ChildAdded:Connect(function(child)
-    if child.Name == "MatchDraftApp" then
-        task.wait(0.2)
-        removeAllKitRenders()
-        startKitRender()
-    end
-end)
-
--- First launch
-startKitRender()
+-- Start the main loop in a background thread
+task.spawn(mainLoop)
