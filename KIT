@@ -1,0 +1,333 @@
+-- Standalone Kit Render for BedWars (5v5/Ranked)
+-- Run this in your executor (Synapse, Krnl, etc.)
+-- It will automatically add kit icons to opponents during the kit selection phase.
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+
+-- Kit name -> Image asset id
+local ids = {
+    ["none"] = "rbxassetid://16493320215",
+    ["random"] = "rbxassetid://79773209697352",
+    ["cowgirl"] = "rbxassetid://9155462968",
+    ["davey"] = "rbxassetid://9155464612",
+    ["warlock"] = "rbxassetid://15186338366",
+    ["ember"] = "rbxassetid://9630017904",
+    ["black_market_trader"] = "rbxassetid://9630017904",
+    ["yeti"] = "rbxassetid://9166205917",
+    ["scarab"] = "rbxassetid://137137517627492",
+    ["defender"] = "rbxassetid://131690429591874",
+    ["cactus"] = "rbxassetid://104436517801089",
+    ["oasis"] = "rbxassetid://120283205213823",
+    ["berserker"] = "rbxassetid://90258047545241",
+    ["sword_shield"] = "rbxassetid://131690429591874",
+    ["airbender"] = "rbxassetid://74712750354593",
+    ["gun_blade"] = "rbxassetid://138231219644853",
+    ["frost_hammer_kit"] = "rbxassetid://11838567073",
+    ["spider_queen"] = "rbxassetid://95237509752482",
+    ["archer"] = "rbxassetid://9224796984",
+    ["axolotl"] = "rbxassetid://9155466713",
+    ["baker"] = "rbxassetid://9155463919",
+    ["barbarian"] = "rbxassetid://9166207628",
+    ["builder"] = "rbxassetid://9155463708",
+    ["necromancer"] = "rbxassetid://11343458097",
+    ["cyber"] = "rbxassetid://9507126891",
+    ["sorcerer"] = "rbxassetid://97940108361528",
+    ["bigman"] = "rbxassetid://9155467211",
+    ["spirit_assassin"] = "rbxassetid://10406002412",
+    ["farmer_cletus"] = "rbxassetid://9155466936",
+    ["ice_queen"] = "rbxassetid://9155466204",
+    ["grim_reaper"] = "rbxassetid://9155467410",
+    ["spirit_gardener"] = "rbxassetid://132108376114488",
+    ["hannah"] = "rbxassetid://10726577232",
+    ["shielder"] = "rbxassetid://9155464114",
+    ["summoner"] = "rbxassetid://18922378956",
+    ["glacial_skater"] = "rbxassetid://84628060516931",
+    ["dragon_sword"] = "rbxassetid://16215630104",
+    ["lumen"] = "rbxassetid://9630018371",
+    ["flower_bee"] = "rbxassetid://101569742252812",
+    ["jellyfish"] = "rbxassetid://18129974852",
+    ["melody"] = "rbxassetid://9155464915",
+    ["mimic"] = "rbxassetid://14783283296",
+    ["miner"] = "rbxassetid://9166208461",
+    ["nazar"] = "rbxassetid://18926951849",
+    ["seahorse"] = "rbxassetid://11902552560",
+    ["elk_master"] = "rbxassetid://15714972287",
+    ["rebellion_leader"] = "rbxassetid://18926409564",
+    ["void_hunter"] = "rbxassetid://122370766273698",
+    ["taliyah"] = "rbxassetid://13989437601",
+    ["angel"] = "rbxassetid://9166208240",
+    ["harpoon"] = "rbxassetid://18250634847",
+    ["void_walker"] = "rbxassetid://78915127961078",
+    ["spirit_summoner"] = "rbxassetid://95760990786863",
+    ["triple_shot"] = "rbxassetid://9166208149",
+    ["void_knight"] = "rbxassetid://73636326782144",
+    ["regent"] = "rbxassetid://9166208904",
+    ["vulcan"] = "rbxassetid://9155465543",
+    ["owl"] = "rbxassetid://12509401147",
+    ["dasher"] = "rbxassetid://9155467645",
+    ["disruptor"] = "rbxassetid://11596993583",
+    ["wizard"] = "rbxassetid://13353923546",
+    ["aery"] = "rbxassetid://9155463221",
+    ["agni"] = "rbxassetid://17024640133",
+    ["alchemist"] = "rbxassetid://9155462512",
+    ["spearman"] = "rbxassetid://9166207341",
+    ["beekeeper"] = "rbxassetid://9312831285",
+    ["falconer"] = "rbxassetid://17022941869",
+    ["bounty_hunter"] = "rbxassetid://9166208649",
+    ["blood_assassin"] = "rbxassetid://12520290159",
+    ["battery"] = "rbxassetid://10159166528",
+    ["steam_engineer"] = "rbxassetid://15380413567",
+    ["vesta"] = "rbxassetid://9568930198",
+    ["beast"] = "rbxassetid://9155465124",
+    ["dino_tamer"] = "rbxassetid://9872357009",
+    ["drill"] = "rbxassetid://12955100280",
+    ["elektra"] = "rbxassetid://13841413050",
+    ["fisherman"] = "rbxassetid://9166208359",
+    ["queen_bee"] = "rbxassetid://12671498918",
+    ["card"] = "rbxassetid://13841410580",
+    ["frosty"] = "rbxassetid://9166208762",
+    ["gingerbread_man"] = "rbxassetid://9155464364",
+    ["ghost_catcher"] = "rbxassetid://9224802656",
+    ["tinker"] = "rbxassetid://17025762404",
+    ["ignis"] = "rbxassetid://13835258938",
+    ["oil_man"] = "rbxassetid://9166206259",
+    ["jade"] = "rbxassetid://9166306816",
+    ["dragon_slayer"] = "rbxassetid://10982192175",
+    ["paladin"] = "rbxassetid://11202785737",
+    ["pinata"] = "rbxassetid://10011261147",
+    ["merchant"] = "rbxassetid://9872356790",
+    ["metal_detector"] = "rbxassetid://9378298061",
+    ["slime_tamer"] = "rbxassetid://15379766168",
+    ["nyoka"] = "rbxassetid://17022941410",
+    ["midnight"] = "rbxassetid://9155462763",
+    ["pyro"] = "rbxassetid://9155464770",
+    ["raven"] = "rbxassetid://9166206554",
+    ["santa"] = "rbxassetid://9166206101",
+    ["sheep_herder"] = "rbxassetid://9155465730",
+    ["smoke"] = "rbxassetid://9155462247",
+    ["spirit_catcher"] = "rbxassetid://9166207943",
+    ["star_collector"] = "rbxassetid://9872356516",
+    ["styx"] = "rbxassetid://17014536631",
+    ["block_kicker"] = "rbxassetid://15382536098",
+    ["trapper"] = "rbxassetid://9166206875",
+    ["hatter"] = "rbxassetid://12509388633",
+    ["ninja"] = "rbxassetid://15517037848",
+    ["jailor"] = "rbxassetid://11664116980",
+    ["warrior"] = "rbxassetid://9166207008",
+    ["mage"] = "rbxassetid://10982191792",
+    ["void_dragon"] = "rbxassetid://10982192753",
+    ["cat"] = "rbxassetid://15350740470",
+    ["wind_walker"] = "rbxassetid://9872355499",
+    ["skeleton"] = "rbxassetid://120123419412119",
+    ["winter_lady"] = "rbxassetid://83274578564074",
+}
+
+-- State
+local enabled = true   -- Set to false if you want to add a toggle later
+local activeConnections = {}   -- for cleanup
+local updateDebounce = {}      -- prevent too frequent updates per player
+local retryThread = nil
+
+-- Clean up everything when disabled
+local function removeAllKitRenders()
+    for _, conn in ipairs(activeConnections) do
+        conn:Disconnect()
+    end
+    table.clear(activeConnections)
+    table.clear(updateDebounce)
+    
+    if retryThread then
+        task.cancel(retryThread)
+        retryThread = nil
+    end
+    
+    -- Destroy all kit icons
+    for _, v in ipairs(PlayerGui:GetDescendants()) do
+        if v:IsA("ImageLabel") and v.Name == "AeroV4KitRender" then
+            v:Destroy()
+        end
+    end
+end
+
+-- Create a new kit icon inside the opponent's card
+local function createKitRender(plr)
+    local icon = Instance.new("ImageLabel")
+    icon.Name = "AeroV4KitRender"
+    icon.AnchorPoint = Vector2.new(1, 0.5)
+    icon.BackgroundTransparency = 1
+    icon.Position = UDim2.new(1.05, 0, 0.5, 0)
+    icon.Size = UDim2.new(1.5, 0, 1.5, 0)
+    icon.SizeConstraint = Enum.SizeConstraint.RelativeYY
+    icon.ImageTransparency = 0.4
+    icon.ScaleType = Enum.ScaleType.Crop
+    local uar = Instance.new("UIAspectRatioConstraint")
+    uar.AspectRatio = 1
+    uar.AspectType = Enum.AspectType.FitWithinMaxSize
+    uar.DominantAxis = Enum.DominantAxis.Width
+    uar.Parent = icon
+    icon.Image = ids[plr:GetAttribute("PlayingAsKit")] or ids["none"]
+    return icon
+end
+
+-- Update icon if kit changed
+local function refreshIcon(icon, plr)
+    if not icon or not icon.Parent then return end
+    local kit = plr:GetAttribute("PlayingAsKit")
+    local newImage = ids[kit] or ids["none"]
+    if icon.Image ~= newImage then
+        icon.Image = newImage
+    end
+end
+
+-- Find the Roblox player from a label and its container
+local function findPlayer(label, container)
+    -- First try to get userId from the PlayerRender image (BedWars uses "rbxthumb://..." with id=)
+    local render = container:FindFirstChild("PlayerRender", true)
+    if render and render:IsA("ImageLabel") and render.Image then
+        local userId = string.match(render.Image, "id=(%d+)")
+        if userId then
+            local plr = Players:GetPlayerByUserId(tonumber(userId))
+            if plr then return plr end
+        end
+    end
+    -- Fallback: match by name or display name
+    local text = label.Text
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr.Name == text or plr.DisplayName == text or plr:GetAttribute("DisguiseDisplayName") == text then
+            return plr
+        end
+    end
+end
+
+-- Main logic for one opponent label
+local function handleLabel(label)
+    if not (label:IsA("TextLabel") and label.Name == "PlayerName") then return end
+    
+    task.spawn(function()
+        -- Walk up to find the main container frame (3 levels up usually)
+        local container = label.Parent
+        for _ = 1, 3 do
+            if container and container.Parent then
+                container = container.Parent
+            end
+        end
+        if not container or not container:IsA("Frame") then return end
+        
+        local playerFound = findPlayer(label, container)
+        if not playerFound then
+            task.wait(0.5)
+            playerFound = findPlayer(label, container)
+        end
+        if not playerFound then return end
+        
+        container.Name = playerFound.Name  -- tag for debugging
+        
+        -- BedWars Draft player card structure: container -> "1" -> MatchDraftPlayerCard
+        local card = container:FindFirstChild("1") and container["1"]:FindFirstChild("MatchDraftPlayerCard")
+        if not card then return end
+        
+        local icon = card:FindFirstChild("AeroV4KitRender")
+        if not icon then
+            icon = createKitRender(playerFound)
+            icon.Parent = card
+        end
+        
+        -- Start update loop for this player
+        local loopKey = playerFound.UserId
+        if updateDebounce[loopKey] then return end  -- already being handled
+        
+        updateDebounce[loopKey] = true
+        task.spawn(function()
+            while enabled and container and container.Parent and icon and icon.Parent do
+                local currentTick = tick()
+                if not updateDebounce[loopKey] or (currentTick - (updateDebounce[loopKey] or 0)) >= 0.5 then
+                    updateDebounce[loopKey] = currentTick
+                    
+                    -- Re-fetch player in case of disguise or name change
+                    local updatedPlayer = findPlayer(label, container)
+                    if updatedPlayer and updatedPlayer ~= playerFound then
+                        playerFound = updatedPlayer
+                    end
+                    
+                    refreshIcon(icon, playerFound)
+                end
+                task.wait(0.5)
+            end
+            updateDebounce[loopKey] = nil
+        end)
+    end)
+end
+
+-- Set up the hook into the draft UI
+local function setupKitRender()
+    local success, team2 = pcall(function()
+        return PlayerGui:FindFirstChild("MatchDraftApp") and
+               PlayerGui.MatchDraftApp:FindFirstChild("DraftAppBackground") and
+               PlayerGui.MatchDraftApp.DraftAppBackground:FindFirstChild("BodyContainer") and
+               PlayerGui.MatchDraftApp.DraftAppBackground.BodyContainer:FindFirstChild("Team2Column")
+    end)
+    
+    if not success or not team2 then
+        return false
+    end
+    
+    -- Process existing player labels
+    for _, child in ipairs(team2:GetDescendants()) do
+        if not enabled then break end
+        handleLabel(child)
+    end
+    
+    -- Listen for new ones
+    local conn = team2.DescendantAdded:Connect(function(child)
+        if enabled then
+            handleLabel(child)
+        end
+    end)
+    table.insert(activeConnections, conn)
+    
+    return true
+end
+
+
+local function startKitRender()
+    if not enabled then return end
+    removeAllKitRenders()
+    local success = setupKitRender()
+    if not success then
+        -- UI not ready yet, wait and try again
+        retryThread = task.spawn(function()
+            while enabled do
+                task.wait(1)
+                if setupKitRender() then
+                    break
+                end
+            end
+        end)
+    end
+end
+
+-- Toggle function (optional)
+function toggleEnabled(state)
+    enabled = state
+    if enabled then
+        startKitRender()
+    else
+        removeAllKitRenders()
+    end
+end
+
+-- Initial start
+startKitRender()
+
+
+local function onPlayerGuiChildAdded(child)
+    if child.Name == "MatchDraftApp" and enabled then
+        task.wait(0.1)
+        removeAllKitRenders()
+        startKitRender()
+    end
+end
+PlayerGui.ChildAdded:Connect(onPlayerGuiChildAdded)
+
